@@ -1,1 +1,1 @@
-# sslider
+# Project SSlider
