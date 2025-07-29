@@ -1,0 +1,362 @@
+#!/bin/bash
+
+# Wallpaper Changer Control Script
+# Script helper untuk mengelola Ubuntu Random Wallpaper Changer
+
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SERVICE_NAME="wallpaper-changer"
+INSTALL_DIR="/opt/wallpaper-changer"
+LOG_FILE="$INSTALL_DIR/wallpaper_changer.log"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+NC='\033[0m' # No Color
+
+print_header() {
+    echo -e "${BOLD}${CYAN}=== Ubuntu Wallpaper Changer Controller ===${NC}"
+    echo ""
+}
+
+print_info() {
+    echo -e "${BLUE}[INFO]${NC} $1"
+}
+
+print_success() {
+    echo -e "${GREEN}[SUCCESS]${NC} $1"
+}
+
+print_warning() {
+    echo -e "${YELLOW}[WARNING]${NC} $1"
+}
+
+print_error() {
+    echo -e "${RED}[ERROR]${NC} $1"
+}
+
+check_installation() {
+    if [ ! -f "$INSTALL_DIR/wallpaper_changer.py" ]; then
+        print_error "Wallpaper changer belum terinstall!"
+        echo "Jalankan: ./install.sh untuk menginstall"
+        exit 1
+    fi
+}
+
+show_status() {
+    print_header
+    print_info "Status Wallpaper Changer Service:"
+    echo ""
+
+    if systemctl is-active --quiet "$SERVICE_NAME" 2>/dev/null; then
+        print_success "Service RUNNING ✓"
+    else
+        print_warning "Service STOPPED ✗"
+    fi
+
+    if systemctl is-enabled --quiet "$SERVICE_NAME" 2>/dev/null; then
+        print_success "Auto-start ENABLED ✓"
+    else
+        print_warning "Auto-start DISABLED ✗"
+    fi
+
+    echo ""
+    echo "Detailed status:"
+    systemctl status "$SERVICE_NAME" --no-pager -l 2>/dev/null || echo "Service not found"
+}
+
+change_now() {
+    check_installation
+    print_info "Mengganti wallpaper sekarang..."
+
+    cd "$INSTALL_DIR"
+    if python3 wallpaper_changer.py --once; then
+        print_success "Wallpaper berhasil diganti!"
+    else
+        print_error "Gagal mengganti wallpaper!"
+        exit 1
+    fi
+}
+
+list_images() {
+    check_installation
+    print_info "Daftar gambar yang tersedia:"
+    echo ""
+
+    cd "$INSTALL_DIR"
+    python3 wallpaper_changer.py --list
+}
+
+show_logs() {
+    check_installation
+
+    case "${2:-service}" in
+        "service")
+            print_info "Service logs (tekan Ctrl+C untuk keluar):"
+            journalctl -u "$SERVICE_NAME" -f
+            ;;
+        "file")
+            if [ -f "$LOG_FILE" ]; then
+                print_info "File logs:"
+                tail -f "$LOG_FILE"
+            else
+                print_warning "Log file tidak ditemukan: $LOG_FILE"
+            fi
+            ;;
+        "recent")
+            print_info "Recent service logs:"
+            journalctl -u "$SERVICE_NAME" -n 20 --no-pager
+            ;;
+        *)
+            print_error "Invalid log option. Use: service, file, or recent"
+            ;;
+    esac
+}
+
+start_service() {
+    print_info "Memulai wallpaper changer service..."
+
+    if sudo systemctl start "$SERVICE_NAME"; then
+        print_success "Service berhasil dimulai!"
+        sleep 2
+        systemctl status "$SERVICE_NAME" --no-pager -l
+    else
+        print_error "Gagal memulai service!"
+        exit 1
+    fi
+}
+
+stop_service() {
+    print_info "Menghentikan wallpaper changer service..."
+
+    if sudo systemctl stop "$SERVICE_NAME"; then
+        print_success "Service berhasil dihentikan!"
+    else
+        print_error "Gagal menghentikan service!"
+        exit 1
+    fi
+}
+
+restart_service() {
+    print_info "Merestart wallpaper changer service..."
+
+    if sudo systemctl restart "$SERVICE_NAME"; then
+        print_success "Service berhasil direstart!"
+        sleep 2
+        systemctl status "$SERVICE_NAME" --no-pager -l
+    else
+        print_error "Gagal merestart service!"
+        exit 1
+    fi
+}
+
+enable_autostart() {
+    print_info "Mengaktifkan auto-start..."
+
+    if sudo systemctl enable "$SERVICE_NAME"; then
+        print_success "Auto-start berhasil diaktifkan!"
+    else
+        print_error "Gagal mengaktifkan auto-start!"
+        exit 1
+    fi
+}
+
+disable_autostart() {
+    print_info "Menonaktifkan auto-start..."
+
+    if sudo systemctl disable "$SERVICE_NAME"; then
+        print_success "Auto-start berhasil dinonaktifkan!"
+    else
+        print_error "Gagal menonaktifkan auto-start!"
+        exit 1
+    fi
+}
+
+set_interval() {
+    local interval="$2"
+
+    if [ -z "$interval" ]; then
+        print_error "Interval tidak boleh kosong!"
+        echo "Contoh: $0 interval 0.5  (untuk 30 menit)"
+        exit 1
+    fi
+
+    print_info "Mengubah interval menjadi $interval jam..."
+
+    # Backup original service file
+    sudo cp "/etc/systemd/system/$SERVICE_NAME.service" "/etc/systemd/system/$SERVICE_NAME.service.bak"
+
+    # Update service file
+    sudo sed -i "s/--interval [0-9.]\+/--interval $interval/g" "/etc/systemd/system/$SERVICE_NAME.service"
+
+    # Reload and restart
+    sudo systemctl daemon-reload
+    sudo systemctl restart "$SERVICE_NAME"
+
+    print_success "Interval berhasil diubah menjadi $interval jam!"
+    print_info "Service telah direstart dengan konfigurasi baru"
+}
+
+add_images() {
+    check_installation
+    local source_dir="$2"
+
+    if [ -z "$source_dir" ]; then
+        print_error "Path ke folder gambar tidak boleh kosong!"
+        echo "Contoh: $0 add /home/user/Pictures"
+        exit 1
+    fi
+
+    if [ ! -d "$source_dir" ]; then
+        print_error "Directory tidak ditemukan: $source_dir"
+        exit 1
+    fi
+
+    print_info "Menambahkan gambar dari $source_dir ke $INSTALL_DIR/places/"
+
+    # Count images to copy
+    count=$(find "$source_dir" -type f \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" -o -iname "*.bmp" -o -iname "*.tiff" -o -iname "*.webp" \) | wc -l)
+
+    if [ "$count" -eq 0 ]; then
+        print_warning "Tidak ada file gambar yang ditemukan di $source_dir"
+        exit 1
+    fi
+
+    print_info "Ditemukan $count file gambar"
+
+    # Copy images
+    find "$source_dir" -type f \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" -o -iname "*.bmp" -o -iname "*.tiff" -o -iname "*.webp" \) -exec sudo cp {} "$INSTALL_DIR/places/" \;
+
+    print_success "$count gambar berhasil ditambahkan!"
+    print_info "Total gambar sekarang: $(ls -1 "$INSTALL_DIR/places/" | wc -l) file"
+}
+
+show_config() {
+    check_installation
+    print_header
+    print_info "Konfigurasi Wallpaper Changer:"
+    echo ""
+
+    # Service status
+    if systemctl is-active --quiet "$SERVICE_NAME" 2>/dev/null; then
+        echo -e "Status Service    : ${GREEN}Running${NC}"
+    else
+        echo -e "Status Service    : ${RED}Stopped${NC}"
+    fi
+
+    if systemctl is-enabled --quiet "$SERVICE_NAME" 2>/dev/null; then
+        echo -e "Auto-start        : ${GREEN}Enabled${NC}"
+    else
+        echo -e "Auto-start        : ${RED}Disabled${NC}"
+    fi
+
+    # Get interval from service file
+    if [ -f "/etc/systemd/system/$SERVICE_NAME.service" ]; then
+        local interval=$(grep -oP '(?<=--interval )[0-9.]+' "/etc/systemd/system/$SERVICE_NAME.service" 2>/dev/null || echo "1")
+        echo "Interval          : $interval jam"
+    fi
+
+    # Count images
+    local image_count
+    if [ -d "$INSTALL_DIR/places" ]; then
+        image_count=$(ls -1 "$INSTALL_DIR/places" | wc -l)
+        echo "Jumlah Gambar     : $image_count file"
+    else
+        echo "Jumlah Gambar     : Directory tidak ditemukan"
+    fi
+
+    echo "Install Directory : $INSTALL_DIR"
+    echo "Log File          : $LOG_FILE"
+    echo ""
+}
+
+show_help() {
+    print_header
+    echo "Script helper untuk mengelola Ubuntu Random Wallpaper Changer"
+    echo ""
+    echo -e "${BOLD}USAGE:${NC}"
+    echo "  $0 <command> [options]"
+    echo ""
+    echo -e "${BOLD}COMMANDS:${NC}"
+    echo -e "  ${CYAN}status${NC}              - Tampilkan status service"
+    echo -e "  ${CYAN}config${NC}              - Tampilkan konfigurasi"
+    echo -e "  ${CYAN}now${NC}                 - Ganti wallpaper sekarang juga"
+    echo -e "  ${CYAN}list${NC}                - Tampilkan daftar gambar"
+    echo ""
+    echo -e "  ${CYAN}start${NC}               - Mulai service"
+    echo -e "  ${CYAN}stop${NC}                - Hentikan service"
+    echo -e "  ${CYAN}restart${NC}             - Restart service"
+    echo ""
+    echo -e "  ${CYAN}enable${NC}              - Aktifkan auto-start"
+    echo -e "  ${CYAN}disable${NC}             - Nonaktifkan auto-start"
+    echo ""
+    echo -e "  ${CYAN}logs${NC} [type]         - Tampilkan logs"
+    echo -e "    types: service (default), file, recent"
+    echo ""
+    echo -e "  ${CYAN}interval${NC} <hours>    - Ubah interval (dalam jam)"
+    echo -e "  ${CYAN}add${NC} <directory>     - Tambah gambar dari directory"
+    echo ""
+    echo -e "  ${CYAN}help${NC}                - Tampilkan help ini"
+    echo ""
+    echo -e "${BOLD}EXAMPLES:${NC}"
+    echo "  $0 status"
+    echo "  $0 now"
+    echo "  $0 interval 0.5    # Setiap 30 menit"
+    echo "  $0 add ~/Pictures"
+    echo "  $0 logs recent"
+    echo ""
+}
+
+# Main command dispatcher
+case "${1:-help}" in
+    "status"|"st")
+        show_status
+        ;;
+    "config"|"cfg")
+        show_config
+        ;;
+    "now"|"change")
+        change_now
+        ;;
+    "list"|"ls")
+        list_images
+        ;;
+    "start")
+        start_service
+        ;;
+    "stop")
+        stop_service
+        ;;
+    "restart"|"reload")
+        restart_service
+        ;;
+    "enable")
+        enable_autostart
+        ;;
+    "disable")
+        disable_autostart
+        ;;
+    "logs"|"log")
+        show_logs "$@"
+        ;;
+    "interval"|"time")
+        set_interval "$@"
+        ;;
+    "add"|"install-images")
+        add_images "$@"
+        ;;
+    "help"|"--help"|"-h"|"")
+        show_help
+        ;;
+    *)
+        print_error "Unknown command: $1"
+        echo ""
+        echo "Use '$0 help' untuk melihat daftar perintah yang tersedia"
+        exit 1
+        ;;
+esac
