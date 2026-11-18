@@ -22,8 +22,16 @@ logging.basicConfig(
 )
 
 class WallpaperChanger:
-    def __init__(self, images_directory="places"):
-        self.images_dir = Path(__file__).parent / images_directory
+    def __init__(self, images_directory=None):
+        script_dir = Path(__file__).parent
+        if images_directory is None:
+            # Gunakan koleksi bawaan; randoms berisi gambar di subfolder kategori.
+            self.images_dirs = [script_dir / "places", script_dir / "randoms"]
+        else:
+            directory = Path(images_directory).expanduser()
+            if not directory.is_absolute():
+                directory = script_dir / directory
+            self.images_dirs = [directory]
         self.supported_formats = {'.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.webp'}
         self.current_wallpaper = None
 
@@ -31,15 +39,19 @@ class WallpaperChanger:
         """Mendapatkan daftar semua file gambar yang didukung"""
         try:
             image_files = []
-            if not self.images_dir.exists():
-                logging.error(f"Directory {self.images_dir} tidak ditemukan!")
-                return []
+            for images_dir in self.images_dirs:
+                if not images_dir.exists():
+                    logging.warning(f"Directory {images_dir} tidak ditemukan, dilewati")
+                    continue
 
-            for file_path in self.images_dir.iterdir():
-                if file_path.is_file() and file_path.suffix.lower() in self.supported_formats:
-                    image_files.append(file_path.absolute())
+                for file_path in images_dir.rglob("*"):
+                    if file_path.is_file() and file_path.suffix.lower() in self.supported_formats:
+                        image_files.append(file_path.absolute())
 
-            logging.info(f"Ditemukan {len(image_files)} file gambar")
+            logging.info(
+                f"Ditemukan {len(image_files)} file gambar dari "
+                f"{len(self.images_dirs)} folder sumber"
+            )
             return image_files
 
         except Exception as e:
@@ -114,8 +126,8 @@ def main():
     import argparse
 
     parser = argparse.ArgumentParser(description='Ubuntu Random Wallpaper Changer')
-    parser.add_argument('--directory', '-d', default='places',
-                       help='Directory berisi file gambar (default: places)')
+    parser.add_argument('--directory', '-d', default=None,
+                       help='Directory gambar kustom (default: folder places dan randoms)')
     parser.add_argument('--interval', '-i', type=float, default=1.0,
                        help='Interval dalam jam untuk mengganti wallpaper (default: 1.0)')
     parser.add_argument('--once', action='store_true',
@@ -133,7 +145,7 @@ def main():
         images = changer.get_image_files()
         print(f"\nDitemukan {len(images)} file gambar:")
         for img in images:
-            print(f"  - {img.name}")
+            print(f"  - {img}")
         return
 
     if args.once:

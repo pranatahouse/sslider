@@ -1,6 +1,6 @@
 # Ubuntu Random Wallpaper Changer
 
-Program Python untuk mengganti wallpaper Ubuntu 24.04 secara otomatis dan random setiap 1 jam menggunakan koleksi gambar dari folder `places`.
+Program Python untuk mengganti wallpaper Ubuntu 24.04 secara otomatis dan random setiap 1 jam menggunakan koleksi gambar dari folder `places` dan `randoms`, termasuk subfoldernya.
 
 ## Fitur
 
@@ -32,14 +32,14 @@ chmod +x install.sh
 ```
 
 Installer akan:
-- Menginstal file ke `/opt/wallpaper-changer/`
+- Menginstal program dan folder wallpaper `places` serta `randoms` ke `/opt/wallpaper-changer/`
 - Membuat systemd service
 - Mengaktifkan auto-start saat login
 - Memulai service jika diminta
 
 ### Instalasi Manual
 
-1. Copy file `wallpaper_changer.py` dan folder `places` ke lokasi yang diinginkan
+1. Copy file `wallpaper_changer.py` dan folder `places` serta `randoms` ke lokasi yang diinginkan
 2. Buat executable:
 ```bash
 chmod +x wallpaper_changer.py
@@ -91,7 +91,7 @@ python3 wallpaper_changer.py --help
 
 ### Menambah Gambar Baru
 
-1. Copy file gambar ke folder `places/`
+1. Copy file gambar ke folder `places/` atau ke subfolder di `randoms/`
 2. Format yang didukung: `.jpg`, `.jpeg`, `.png`, `.bmp`, `.tiff`, `.webp`
 3. Service akan otomatis detect gambar baru
 
@@ -174,6 +174,10 @@ sslider/
 │   ├── image1.jpg
 │   ├── image2.png
 │   └── ...
+├── randoms/                # Gambar wallpaper tambahan, termasuk dalam subfolder kategori
+│   ├── nature/
+│   ├── bali/
+│   └── ...
 └── README_WALLPAPER.md     # Dokumentasi ini
 ```
 
@@ -183,6 +187,8 @@ Setelah instalasi:
 ├── wallpaper_changer.py
 ├── places/
 │   └── (koleksi gambar)
+├── randoms/
+│   └── (koleksi gambar dan subfolder kategori)
 └── wallpaper_changer.log   # Log file
 ```
 

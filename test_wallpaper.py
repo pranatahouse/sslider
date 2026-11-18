@@ -62,22 +62,22 @@ def check_image_directory():
     print_status("Memeriksa folder gambar...")
 
     script_dir = Path(__file__).parent
-    places_dir = script_dir / "places"
-
-    if not places_dir.exists():
-        print_status("Folder 'places' tidak ditemukan", "ERROR")
-        return False
-
     # Hitung file gambar
     supported_formats = {'.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.webp'}
     image_files = []
 
-    for file_path in places_dir.iterdir():
-        if file_path.is_file() and file_path.suffix.lower() in supported_formats:
-            image_files.append(file_path)
+    for directory_name in ("places", "randoms"):
+        directory = script_dir / directory_name
+        if not directory.exists():
+            print_status(f"Folder '{directory_name}' tidak ditemukan", "WARNING")
+            continue
+        image_files.extend(
+            file_path for file_path in directory.rglob("*")
+            if file_path.is_file() and file_path.suffix.lower() in supported_formats
+        )
 
     if len(image_files) == 0:
-        print_status("Tidak ada file gambar yang ditemukan dalam folder 'places'", "ERROR")
+        print_status("Tidak ada file gambar yang ditemukan dalam folder 'places' atau 'randoms'", "ERROR")
         return False
 
     print_status(f"Ditemukan {len(image_files)} file gambar ✓", "SUCCESS")

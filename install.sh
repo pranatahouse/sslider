@@ -60,6 +60,9 @@ install_files() {
     # Copy files
     sudo cp "$SCRIPT_DIR/wallpaper_changer.py" "$INSTALL_DIR/"
     sudo cp -r "$SCRIPT_DIR/places" "$INSTALL_DIR/"
+    if [ -d "$SCRIPT_DIR/randoms" ]; then
+        sudo cp -r "$SCRIPT_DIR/randoms" "$INSTALL_DIR/"
+    fi
 
     # Make executable
     sudo chmod +x "$INSTALL_DIR/wallpaper_changer.py"

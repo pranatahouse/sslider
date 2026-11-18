@@ -2,7 +2,7 @@
 
 ## Ubuntu Random Wallpaper Changer
 
-Program Python untuk mengganti wallpaper Ubuntu 24.04 secara otomatis dan random setiap 1 jam menggunakan koleksi gambar dari folder `places`.
+Program Python untuk mengganti wallpaper Ubuntu 24.04 secara otomatis dan random setiap 1 jam menggunakan koleksi gambar dari folder `places` dan `randoms`, termasuk subfoldernya.
 
 ### 🚀 Quick Start
 
@@ -26,6 +26,7 @@ Program Python untuk mengganti wallpaper Ubuntu 24.04 secara otomatis dan random
 - `wpc` - Script kontrol wallpaper
 - `test_wallpaper.py` - Test sistem
 - `places/` - Folder berisi 600+ gambar wallpaper
+- `randoms/` - Koleksi wallpaper tambahan dalam subfolder kategori
 - `README_WALLPAPER.md` - Dokumentasi lengkap
 - `QUICKSTART.md` - Panduan cepat
 
